@@ -1,8 +1,12 @@
-﻿using Csv;
+﻿using AssetParser;
+using Csv;
+using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using UE4localizationsTool.Core.locres;
 
 namespace UE4localizationsTool.Helper
 {
@@ -30,6 +34,82 @@ namespace UE4localizationsTool.Helper
                 }
             }
 
+        }
+
+        public void LoadByKeys(NDataGridView dataGrid, string filePath)
+        {
+            using (var textReader = new StreamReader(filePath))
+            {
+                var options = new CsvOptions() { AllowNewLineInEnclosedFieldValues = true };
+                foreach (var line in CsvReader.Read(textReader, options))
+                {
+                    if (line.ColumnCount < 3 || line[0].StartsWith("#"))
+                        continue;
+
+                    if (!string.IsNullOrEmpty(line[2]))
+                    {
+                        // Find the line with the desired name
+                        int rowIndex = -1;
+
+                        foreach (DataGridViewRow row in dataGrid.Rows)
+                        {
+                            if (row.Cells["Name"].Value != null && row.Cells["Name"].Value.ToString() == line[0])
+                            {
+                                rowIndex = row.Index;
+                                break;
+                            }
+                        }
+
+                        if (rowIndex != -1)
+                        {
+                            dataGrid.SetValue(dataGrid.Rows[rowIndex].Cells["Text value"], line[2]);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Matching line not found: ", line[0]);
+                            continue;
+                        }
+
+                        
+                    }
+                        
+                }
+            }
+
+        }
+
+        public void LoadNewLines(NDataGridView dataGrid, string filePath, LocresFile asset)
+        {
+            using (var textReader = new StreamReader(filePath))
+            {
+                var options = new CsvOptions() { AllowNewLineInEnclosedFieldValues = true };
+                foreach (var line in CsvReader.Read(textReader, options))
+                {
+                    if (!string.IsNullOrEmpty(line[1]))
+                    {
+                        System.Data.DataTable dt = (System.Data.DataTable)dataGrid.DataSource;
+
+                        string RowName = line[0];
+                        string Value = line[1];
+
+                        var HashTable = new HashTable()
+                        {
+                            NameHash  = 0, // empty NameSpace
+                            KeyHash   = 0, // usually always 0
+                            ValueHash = asset.CalcHashExperimental(Value) // hash generated from original string
+                        };
+
+                        // If there is a translation, add it to the table
+                        if (line.ColumnCount > 2 && !string.IsNullOrEmpty(line[2]))
+                        {
+                            Value = line[2];
+                        }
+
+                        dt.Rows.Add(RowName, Value, HashTable); // RowName = NameSpace::Key
+                    }
+                }
+            }
+                    
         }
 
         public void Save(DataGridView dataGrid, string filePath)

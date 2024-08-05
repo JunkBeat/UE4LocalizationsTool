@@ -117,6 +117,20 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="textBox1.Text" xml:space="preserve">
+    <value>UE4 localizations Tool is a simple tool to edit unreal engine 4 text files.
+
+Author: amr shaheeen(@amrshaheen61)
+
+New features (by JunkBeat):
+- Transfer hashes - transfers hash from other locres files.
+
+- Merge Locress Stable - adds missing lines from other locres to the table.
+
+- Import all text (by keys) - the import method from csv was changed there. Lines are replaced by keys, you can also add comment lines to csv that start with the # sign (they will be skipped).
+
+- Import new lines from CSV - adds new lines + generates hashes.</value>
+  </data>
   <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
   <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>

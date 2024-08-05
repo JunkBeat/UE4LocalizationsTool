@@ -115,6 +115,9 @@ namespace UE4localizationsTool
             withNamesToolStripMenuItem.Enabled = Enabled;
             clearFilterToolStripMenuItem.Enabled = Enabled;
             csvFileToolStripMenuItem.Enabled = Enabled;
+            importAllTextByKeystoolStripMenuItem.Enabled = Enabled;
+            importNewLinesFromCSVtoolStripMenuItem.Enabled = Enabled;
+
         }
         enum ExportType
         {
@@ -763,6 +766,243 @@ namespace UE4localizationsTool
         private void replaceToolStripMenuItem_Click(object sender, EventArgs e)
         {
             searchBox.ShowReplacePanel();
+        }
+
+        private void transferTextHashFromOriginalLocresToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "Locres File(s)|*.locres";
+            ofd.Title = "Select localization file(s)";
+            ofd.Multiselect = true;
+
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                StatusMessage("Transfering text hashes...", "Transfering text hashes, please wait.");
+                var dataTable = new System.Data.DataTable();
+
+                if (dataGridView1.DataSource is System.Data.DataTable sourceDataTable)
+                {
+                    foreach (DataColumn col in sourceDataTable.Columns)
+                    {
+                        dataTable.Columns.Add(col.ColumnName, col.DataType);
+                    }
+                }
+
+
+                try
+                {
+                    foreach (string fileName in ofd.FileNames)
+                    {
+                        foreach (var names in new LocresFile(fileName))
+                        {
+                            foreach (var table in names)
+                            {
+                                string name = string.IsNullOrEmpty(names.Name) ? table.key : names.Name + "::" + table.key;
+                                string textValue = table.Value;
+                                dataTable.Rows.Add(name, textValue, new HashTable(names.NameHash, table.keyHash, table.ValueHash));
+                            }
+                        }
+                    }
+
+                    // Transfer hashes from dataTable to dataGridView1 based on the name
+                    foreach (DataGridViewRow gridRow in dataGridView1.Rows)
+                    {
+                        if (gridRow.Cells["Name"].Value != null)
+                        {
+                            string gridName = gridRow.Cells["Name"].Value.ToString();
+                            DataRow[] matchingRows = dataTable.Select($"Name = '{gridName}'");
+
+                            if (matchingRows.Length > 0)
+                            {
+                                // Assuming the column that holds the hash value in dataGridView1 is named "HashColumn"
+                                gridRow.Cells["Hash Table"].Value = matchingRows[0]["Hash Table"];
+                            }
+                        }
+                    }
+
+
+                    MessageBox.Show("Locres file(s) hashes transfered successfully.", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("An error occurred while transfering locres file(s) hashes:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                CloseFromState();
+            }
+        }
+
+        private void mergeLocresFileStableNEWToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "Locres File(s)|*.locres";
+            ofd.Title = "Select localization file(s)";
+            ofd.Multiselect = true;
+
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                StatusMessage("Merging locres...", "Merging locres, please wait.");
+                var dataTable = new System.Data.DataTable();
+
+                if (dataGridView1.DataSource is System.Data.DataTable sourceDataTable)
+                {
+                    foreach (DataColumn col in sourceDataTable.Columns)
+                    {
+                        dataTable.Columns.Add(col.ColumnName, col.DataType);
+                    }
+                }
+
+
+                try
+                {
+                    foreach (string fileName in ofd.FileNames)
+                    {
+                        foreach (var names in new LocresFile(fileName))
+                        {
+                            foreach (var table in names)
+                            {
+                                string name = string.IsNullOrEmpty(names.Name) ? table.key : names.Name + "::" + table.key;
+                                string textValue = table.Value;
+                                dataTable.Rows.Add(name, textValue, new HashTable(names.NameHash, table.keyHash, table.ValueHash));
+                            }
+                        }
+                    }
+
+                    // Transfer new rows from dataTable to dataGridView1 based on the name
+                    foreach (DataRow dtRow in dataTable.Rows)
+                    {
+                        bool rowExists = false;
+
+                        string RowName = dtRow["Name"].ToString();
+                        string RowText = dtRow["Text value"].ToString();
+                        HashTable RowHash = dtRow["Hash Table"] as HashTable;
+
+                        foreach (DataGridViewRow gridRow in dataGridView1.Rows)
+                        {
+                            if (gridRow.Cells["Name"].Value != null && 
+                                string.Equals(gridRow.Cells["Name"].Value.ToString(), RowName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                rowExists = true;
+                                break;
+                            }
+                        }
+
+                        if (!rowExists)
+                        {
+                            System.Data.DataTable dt = (System.Data.DataTable)dataGridView1.DataSource;
+                            dt.Rows.Add(RowName, RowText, RowHash);
+                        } 
+                    }
+
+                    MessageBox.Show("Locres file(s) merged successfully.", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("An error occurred while merging locres file(s):\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                CloseFromState();
+            }
+        }
+
+        private void importAllTextByKeystoolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            //ofd.Filter = "Text File|*.txt;*.csv";
+            ofd.Filter = "Text File|*.csv";
+            ofd.Title = "Import All Text (by keys)";
+
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                if (this.SortApply && !(Asset is LocresFile)) SortDataGrid(2, true);
+
+                if (ofd.FileName.EndsWith(".csv", StringComparison.InvariantCulture))
+                {
+                    try
+                    {
+                        CSVFile.Instance.LoadByKeys(this.dataGridView1, ofd.FileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message, ToolName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+
+                    MessageBox.Show("Successful import!", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+
+
+                //string[] DataGridStrings;
+                //try
+                //{
+                //    DataGridStrings = System.IO.File.ReadAllLines(ofd.FileName);
+                //}
+                //catch
+                //{
+                //    MessageBox.Show("Can't read file or this file is using in Another process", "File is corrupted", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                //    return;
+                //}
+
+                //if (DataGridStrings.Length < dataGridView1.Rows.Count)
+                //{
+                //    MessageBox.Show("This file does't contain enough strings for reimport", "Out of range", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                //    return;
+                //}
+
+                //if (DataGridStrings[0].StartsWith("[~NAMES-INCLUDED~]", StringComparison.OrdinalIgnoreCase))
+                //{
+                //    DataGridStrings = DataGridStrings.Skip(1).ToArray();
+                //    for (int n = 0; n < DataGridStrings.Length; n++)
+                //    {
+                //        try
+                //        {
+                //            if (DataGridStrings[n].Contains("="))
+                //                DataGridStrings[n] = DataGridStrings[n].Split(new char[] { '=' }, 2)[1];
+                //        }
+                //        catch
+                //        {
+                //            MessageBox.Show($"Corrupted string format in line " + (n + 1), this.Text, MessageBoxButtons.OK, MessageBoxIcon.Stop);
+                //            return;
+                //        }
+
+                //    }
+
+                //}
+
+                //for (int n = 0; n < dataGridView1.Rows.Count; n++)
+                //{
+                //    dataGridView1.SetValue(dataGridView1.Rows[n].Cells["Text value"], DataGridStrings[n]);
+                //}
+                //MessageBox.Show("Successful import!", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+
+            }
+        }
+
+        private void importNewLinesFromCSVtoolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "CSV File|*.csv";
+            ofd.Title = "Import New Lines From CSV";
+
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                if (this.SortApply && !(Asset is LocresFile)) SortDataGrid(2, true);
+
+                if (ofd.FileName.EndsWith(".csv", StringComparison.InvariantCulture))
+                {
+                    try
+                    {
+                        CSVFile.Instance.LoadNewLines(this.dataGridView1, ofd.FileName, (LocresFile)Asset);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message, ToolName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+
+                    MessageBox.Show("Successful import!", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+            }
         }
     }
 }
