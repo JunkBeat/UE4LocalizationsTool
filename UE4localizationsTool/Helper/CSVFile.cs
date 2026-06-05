@@ -38,44 +38,103 @@ namespace UE4localizationsTool.Helper
 
         public void LoadByKeys(NDataGridView dataGrid, string filePath)
         {
+            var keyToRowIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (DataGridViewRow row in dataGrid.Rows)
+            {
+                if (row.Cells["Name"].Value != null)
+                {
+                    string gridKey = row.Cells["Name"].Value.ToString();
+                    if (!keyToRowIndex.ContainsKey(gridKey))
+                    {
+                        keyToRowIndex.Add(gridKey, row.Index);
+                    }
+                }
+            }
+
+            var missingKeys = new List<string>();
+            int totalImportedLines = 0;
+            bool isFirstLine = true;
+
+            // Read CSV and update DataGridView based on keys
             using (var textReader = new StreamReader(filePath))
             {
                 var options = new CsvOptions() { AllowNewLineInEnclosedFieldValues = true };
                 foreach (var line in CsvReader.Read(textReader, options))
                 {
+                    // Skip header line and any lines that don't have enough columns or are comments
+                    if (isFirstLine)
+                    {
+                        isFirstLine = false;
+                        continue;
+                    }
+
                     if (line.ColumnCount < 3 || line[0].StartsWith("#"))
                         continue;
 
                     if (!string.IsNullOrEmpty(line[2]))
                     {
-                        // Find the line with the desired name
-                        int rowIndex = -1;
+                        totalImportedLines++;
+                        string csvKey = line[0];
 
-                        foreach (DataGridViewRow row in dataGrid.Rows)
-                        {
-                            if (row.Cells["Name"].Value != null && row.Cells["Name"].Value.ToString() == line[0])
-                            {
-                                rowIndex = row.Index;
-                                break;
-                            }
-                        }
-
-                        if (rowIndex != -1)
+                        // Try to find the key in the DataGridView and update the translation
+                        if (keyToRowIndex.TryGetValue(csvKey, out int rowIndex))
                         {
                             dataGrid.SetValue(dataGrid.Rows[rowIndex].Cells["Text value"], line[2]);
                         }
                         else
                         {
-                            Console.WriteLine("Matching line not found: ", line[0]);
-                            continue;
+                            missingKeys.Add(csvKey);
                         }
-
-                        
                     }
-                        
                 }
             }
 
+            // Process results after import
+            if (totalImportedLines == 0)
+            {
+                MessageBox.Show("No translation data found in the CSV file.", "Import Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Scenario A: NONE of the keys were found
+            if (missingKeys.Count == totalImportedLines)
+            {
+                MessageBox.Show(
+                    "Error: NONE of the keys from the CSV file were found in the table!\n\n" +
+                    "Please check if the key format in your CSV matches the 'Name' column exactly (e.g. dots '.' vs colons '::').",
+                    "Import Failed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+                return;
+            }
+
+            // Scenario B: SOME keys were found, SOME were missing
+            if (missingKeys.Count > 0)
+            {
+                try
+                {
+                    File.WriteAllLines("missing_keys.txt", missingKeys);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Could not write missing_keys.txt: {ex.Message}", "File Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+
+                string message = $"Import finished, but {missingKeys.Count} keys were not found in the table.\n\n" +
+                                 "First few missing keys:\n" +
+                                 string.Join("\n", missingKeys.Take(5));
+
+                if (missingKeys.Count > 5)
+                {
+                    message += $"\n... and {missingKeys.Count - 5} more.";
+                }
+
+                message += "\n\n📂 The full list of missing keys has been saved to 'missing_keys.txt'.";
+
+                MessageBox.Show(message, "Import Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         public void LoadNewLines(NDataGridView dataGrid, string filePath, LocresFile asset)
