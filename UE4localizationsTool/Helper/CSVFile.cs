@@ -54,7 +54,6 @@ namespace UE4localizationsTool.Helper
 
             var missingKeys = new List<string>();
             int totalImportedLines = 0;
-            bool isFirstLine = true;
 
             // Read CSV and update DataGridView based on keys
             using (var textReader = new StreamReader(filePath))
@@ -62,13 +61,6 @@ namespace UE4localizationsTool.Helper
                 var options = new CsvOptions() { AllowNewLineInEnclosedFieldValues = true };
                 foreach (var line in CsvReader.Read(textReader, options))
                 {
-                    // Skip header line and any lines that don't have enough columns or are comments
-                    if (isFirstLine)
-                    {
-                        isFirstLine = false;
-                        continue;
-                    }
-
                     if (line.ColumnCount < 3 || line[0].StartsWith("#"))
                         continue;
 
