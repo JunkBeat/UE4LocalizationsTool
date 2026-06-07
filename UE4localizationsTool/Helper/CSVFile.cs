@@ -134,33 +134,41 @@ namespace UE4localizationsTool.Helper
             using (var textReader = new StreamReader(filePath))
             {
                 var options = new CsvOptions() { AllowNewLineInEnclosedFieldValues = true };
+                System.Data.DataTable dt = (System.Data.DataTable)dataGrid.DataSource;
+
                 foreach (var line in CsvReader.Read(textReader, options))
                 {
                     if (!string.IsNullOrEmpty(line[1]))
                     {
-                        System.Data.DataTable dt = (System.Data.DataTable)dataGrid.DataSource;
+                        string RowName = line[0];       // Namespace::Key
+                        string SourceText = line[1];     // Source
 
-                        string RowName = line[0];
-                        string Value = line[1];
+                        string TranslationValue = (line.ColumnCount > 2 && !string.IsNullOrEmpty(line[2])) ? line[2] : SourceText;
 
-                        var HashTable = new HashTable()
+                        var items = RowName.Split(new string[] { "::" }, StringSplitOptions.None);
+                        string nameSpaceStr = "";
+                        string keyStr = "";
+
+                        if (items.Length == 2)
                         {
-                            NameHash  = 0, // empty NameSpace
-                            KeyHash   = 0, // usually always 0
-                            ValueHash = asset.CalcHashExperimental(Value) // hash generated from original string
-                        };
-
-                        // If there is a translation, add it to the table
-                        if (line.ColumnCount > 2 && !string.IsNullOrEmpty(line[2]))
+                            nameSpaceStr = items[0];
+                            keyStr = items[1];
+                        }
+                        else
                         {
-                            Value = line[2];
+                            keyStr = items[0];
                         }
 
-                        dt.Rows.Add(RowName, Value, HashTable); // RowName = NameSpace::Key
+                        uint nameHash = asset.CalcHash(nameSpaceStr);
+                        uint keyHash = asset.CalcHash(keyStr);
+                        uint valueHash = asset.CalcHashForValue(SourceText);
+
+                        var HashTable = new HashTable(nameHash, keyHash, valueHash);
+                        asset.AddString(nameSpaceStr, keyStr, TranslationValue, nameHash, keyHash, valueHash);
+                        dt.Rows.Add(RowName, TranslationValue, HashTable);
                     }
                 }
             }
-                    
         }
 
         public void Save(DataGridView dataGrid, string filePath)

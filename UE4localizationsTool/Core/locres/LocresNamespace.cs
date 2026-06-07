@@ -583,19 +583,13 @@ namespace UE4localizationsTool.Core.locres
                 return 0;
         }
 
-        // Generate hash anyway (don't return 0)
-        public uint CalcHashExperimental(string Str)
+        public uint CalcHashForValue(string Str)
         {
             if (string.IsNullOrEmpty(Str))
             {
                 return 0;
             }
-
-
-            if (Version == LocresVersion.Optimized_CityHash64_UTF16)
-                return Optimized_CityHash64_UTF16Hash(Str);
-            else
-                return Str.StrCrc32();
+            return Str.StrCrc32();
         }
 
         public class StringEntry

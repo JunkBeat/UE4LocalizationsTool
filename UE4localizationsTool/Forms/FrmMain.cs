@@ -1,5 +1,6 @@
 ﻿using AssetParser;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
@@ -590,22 +591,84 @@ namespace UE4localizationsTool
                 return;
             }
 
-
             DialogResult result = MessageBox.Show("Are you sure you want to remove the selected row(s)?", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (result != DialogResult.Yes) return;
 
-            if (result == DialogResult.Yes)
+            if (this.dataGridView1.DataSource is System.Data.DataTable dt)
             {
-                dataGridView1.BeginEdit(false);
+                HashSet<System.Data.DataRow> rowsToDelete = new HashSet<System.Data.DataRow>();
+
+                var locres = Asset as UE4localizationsTool.Core.locres.LocresFile;
+
                 foreach (DataGridViewCell cell in dataGridView1.SelectedCells)
                 {
-                    if (cell.RowIndex >= 0 && cell.RowIndex < dataGridView1.Rows.Count)
+                    if (cell.RowIndex < 0 || cell.RowIndex >= dataGridView1.Rows.Count || dataGridView1.Rows[cell.RowIndex].IsNewRow)
+                        continue;
+
+                    DataGridViewRow dgRow = dataGridView1.Rows[cell.RowIndex];
+
+                    if (dgRow.DataBoundItem is System.Data.DataRowView rowView)
                     {
-                        dataGridView1.Rows.Remove(cell.OwningRow);
+                        bool isAddedFirstTime = rowsToDelete.Add(rowView.Row);
+
+                        if (isAddedFirstTime && locres != null)
+                        {
+                            var nameValue = dgRow.Cells["Name"].Value?.ToString() ?? "";
+                            var items = nameValue.Split(new string[] { "::" }, StringSplitOptions.None);
+                            string nameSpaceStr = items.Length == 2 ? items[0] : "";
+                            string keyStr = items.Length == 2 ? items[1] : items[0];
+
+                            locres.RemoveString(nameSpaceStr, keyStr);
+                        }
                     }
                 }
-                dataGridView1.EndEdit();
+
+                if (rowsToDelete.Count >= dt.Rows.Count)
+                {
+                    dt.Clear();
+                    locres?.Clear();
+                    return;
+                }
+
+                dataGridView1.SuspendLayout();
+                try
+                {
+                    foreach (var row in rowsToDelete)
+                    {
+                        dt.Rows.Remove(row);
+                    }
+                }
+                finally
+                {
+                    dataGridView1.ResumeLayout();
+                }
             }
         }
+
+        //private void removeSelectedRowToolStripMenuItem_Click(object sender, EventArgs e)
+        //{
+        //    if (dataGridView1.SelectedCells.Count == 0)
+        //    {
+        //        MessageBox.Show("No row(s) selected to remove.", "Remove Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        //        return;
+        //    }
+
+
+        //    DialogResult result = MessageBox.Show("Are you sure you want to remove the selected row(s)?", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+        //    if (result == DialogResult.Yes)
+        //    {
+        //        dataGridView1.BeginEdit(false);
+        //        foreach (DataGridViewCell cell in dataGridView1.SelectedCells)
+        //        {
+        //            if (cell.RowIndex >= 0 && cell.RowIndex < dataGridView1.Rows.Count)
+        //            {
+        //                dataGridView1.Rows.Remove(cell.OwningRow);
+        //            }
+        //        }
+        //        dataGridView1.EndEdit();
+        //    }
+        //}
 
         private void editSelectedRowToolStripMenuItem_Click(object sender, EventArgs e)
         {
