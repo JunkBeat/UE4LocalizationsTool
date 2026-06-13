@@ -56,9 +56,13 @@ namespace UE4localizationsTool.Controls
 
             if (control.ContextMenuStrip != null)
             {
-                foreach (ToolStripMenuItem toolStripItem in control.ContextMenuStrip.Items)
+                foreach (ToolStripItem toolStripItem in control.ContextMenuStrip.Items)
                 {
-                    GetAllContextMenuNames(toolStripItem, controlName);
+                    // Check that the element is a menu item and not a separator
+                    if (toolStripItem is ToolStripMenuItem menuItem)
+                    {
+                        GetAllContextMenuNames(menuItem, controlName);
+                    }
                 }
             }
 

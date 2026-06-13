@@ -29,6 +29,14 @@ public class NDataGridView : DataGridView
     [Browsable(true)]
     public event EventHandler RowCountChanged;
 
+    [Browsable(true)]
+    public event EventHandler AddNewRowRequested;
+    [Browsable(true)]
+    public event EventHandler EditSelectedRowRequested;
+    [Browsable(true)]
+    public event EventHandler RemoveSelectedRowRequested;
+
+    private ToolStripMenuItem editMenuItem;
 
     private bool _isFiltering = false;
 
@@ -213,6 +221,23 @@ public class NDataGridView : DataGridView
     private void InitializeContextMenu()
     {
         contextMenuStrip = new ContextMenuStrip();
+
+        // --- NEW MENU ITEMS ---
+        ToolStripMenuItem addMenuItem = new ToolStripMenuItem("Add New Row");
+        addMenuItem.Click += (s, e) => AddNewRowRequested?.Invoke(this, EventArgs.Empty);
+        contextMenuStrip.Items.Add(addMenuItem);
+
+        editMenuItem = new ToolStripMenuItem("Edit Selected Row");
+        editMenuItem.Click += (s, e) => EditSelectedRowRequested?.Invoke(this, EventArgs.Empty);
+        contextMenuStrip.Items.Add(editMenuItem);
+
+        ToolStripMenuItem removeMenuItem = new ToolStripMenuItem("Remove Selected Row(s)");
+        removeMenuItem.Click += (s, e) => RemoveSelectedRowRequested?.Invoke(this, EventArgs.Empty);
+        contextMenuStrip.Items.Add(removeMenuItem);
+        // -----------------------
+
+        contextMenuStrip.Items.Add(new ToolStripSeparator());
+
         ToolStripMenuItem copyMenuItem = new ToolStripMenuItem("Copy");
         copyMenuItem.ShortcutKeyDisplayString = "Ctrl+C";
         copyMenuItem.Click += CopyMenuItem_Click;
@@ -294,11 +319,19 @@ public class NDataGridView : DataGridView
             var clickedCell = HitTest(e.X, e.Y);
             if (clickedCell.RowIndex >= 0 && clickedCell.ColumnIndex >= 0 && Rows.Count > 0)
             {
-                CurrentCell = Rows[clickedCell.RowIndex].Cells[clickedCell.ColumnIndex];
-                ContextMenuStrip.Items[1].Enabled = true;
-                if (CurrentCell.ReadOnly)
+                var cell = Rows[clickedCell.RowIndex].Cells[clickedCell.ColumnIndex];
+
+                if (!cell.Selected)
                 {
-                    ContextMenuStrip.Items[1].Enabled = false;
+                    ClearSelection();
+                    CurrentCell = cell;
+                    cell.Selected = true;
+                }
+
+                if (ContextMenuStrip != null && ContextMenuStrip.Items.Count > 1)
+                {
+                    // "Past" MenuItem
+                    ContextMenuStrip.Items[4].Enabled = !cell.ReadOnly;
                 }
             }
         }
